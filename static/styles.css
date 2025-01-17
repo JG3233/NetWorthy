@@ -1,0 +1,97 @@
+.card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+}
+
+.form-label {
+    font-weight: 500;
+}
+
+#results {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.text-success {
+    color: #198754 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.h3 {
+    font-weight: 600;
+}
+
+.list-group-item.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.list-group-item:hover:not(.active) {
+    background-color: #f8f9fa;
+}
+
+.float-end {
+    float: right;
+}
+
+.add-year-form input[type="number"] {
+    width: 100%;
+}
+
+/* Remove spinner buttons from number input */
+.add-year-form input[type="number"]::-webkit-inner-spin-button,
+.add-year-form input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.add-year-form input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+#netWorthChart {
+    height: 400px !important;
+    width: 100% !important;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+/* Add these styles */
+.list-group-item a {
+    color: inherit;
+}
+
+.list-group-item.active a {
+    color: white;
+}
+
+.list-group-item:hover:not(.active) {
+    background-color: #f8f9fa;
+}
+
+.list-group-item .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* Prevent button from being blue when focused in active list item */
+.list-group-item.active .btn:focus {
+    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25);
+} 
