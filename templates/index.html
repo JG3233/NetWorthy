@@ -53,12 +53,122 @@
                     <div class="card-body">
                         {% if latest_data.assets %}
                         <ul class="list-group">
-                            {% for name, value in latest_data.assets.items() %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ name|replace('_', ' ')|title }}
-                                <span>${{ "{:,.2f}".format(value) }}</span>
+                            <!-- Cash -->
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>Cash & Savings</strong>
+                                    <span>${{ "{:,.2f}".format(latest_data.assets.cash.total) }}</span>
+                                </div>
+                                {% if latest_data.assets.cash.list %}
+                                <ul class="list-unstyled mt-2 ms-3">
+                                    {% for name, value in latest_data.assets.cash.list.items() %}
+                                    <li class="d-flex justify-content-between small">
+                                        <span>{{ name|replace('_', ' ')|title }}</span>
+                                        <span>${{ "{:,.2f}".format(value) }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
                             </li>
-                            {% endfor %}
+
+                            <!-- Investments -->
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>Investments</strong>
+                                    <span>${{ "{:,.2f}".format(latest_data.assets.investments.total) }}</span>
+                                </div>
+                                <ul class="list-unstyled mt-2 ms-3">
+                                    <!-- Pre-tax -->
+                                    <li class="mb-2">
+                                        <div class="d-flex justify-content-between small">
+                                            <strong>Pre-tax Accounts</strong>
+                                            <span>${{ "{:,.2f}".format(latest_data.assets.investments.pre_tax.total) }}</span>
+                                        </div>
+                                        {% if latest_data.assets.investments.pre_tax.list %}
+                                        <ul class="list-unstyled ms-3">
+                                            {% for name, value in latest_data.assets.investments.pre_tax.list.items() %}
+                                            <li class="d-flex justify-content-between small">
+                                                <span>{{ name|replace('_', ' ')|title }}</span>
+                                                <span>${{ "{:,.2f}".format(value) }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% endif %}
+                                    </li>
+
+                                    <!-- Tax-free -->
+                                    <li class="mb-2">
+                                        <div class="d-flex justify-content-between small">
+                                            <strong>Tax-free Accounts</strong>
+                                            <span>${{ "{:,.2f}".format(latest_data.assets.investments.tax_free.total) }}</span>
+                                        </div>
+                                        {% if latest_data.assets.investments.tax_free.list %}
+                                        <ul class="list-unstyled ms-3">
+                                            {% for name, value in latest_data.assets.investments.tax_free.list.items() %}
+                                            <li class="d-flex justify-content-between small">
+                                                <span>{{ name|replace('_', ' ')|title }}</span>
+                                                <span>${{ "{:,.2f}".format(value) }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% endif %}
+                                    </li>
+
+                                    <!-- After-tax -->
+                                    <li>
+                                        <div class="d-flex justify-content-between small">
+                                            <strong>After-tax Accounts</strong>
+                                            <span>${{ "{:,.2f}".format(latest_data.assets.investments.after_tax.total) }}</span>
+                                        </div>
+                                        {% if latest_data.assets.investments.after_tax.list %}
+                                        <ul class="list-unstyled ms-3">
+                                            {% for name, value in latest_data.assets.investments.after_tax.list.items() %}
+                                            <li class="d-flex justify-content-between small">
+                                                <span>{{ name|replace('_', ' ')|title }}</span>
+                                                <span>${{ "{:,.2f}".format(value) }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% endif %}
+                                    </li>
+                                </ul>
+                            </li>
+
+                            <!-- Business Interests -->
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>Business Interests</strong>
+                                    <span>${{ "{:,.2f}".format(latest_data.assets.business_interests.total) }}</span>
+                                </div>
+                                {% if latest_data.assets.business_interests.list %}
+                                <ul class="list-unstyled mt-2 ms-3">
+                                    {% for name, value in latest_data.assets.business_interests.list.items() %}
+                                    <li class="d-flex justify-content-between small">
+                                        <span>{{ name|replace('_', ' ')|title }}</span>
+                                        <span>${{ "{:,.2f}".format(value) }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </li>
+
+                            <!-- Property -->
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>Property</strong>
+                                    <span>${{ "{:,.2f}".format(latest_data.assets.property.total) }}</span>
+                                </div>
+                                {% if latest_data.assets.property.list %}
+                                <ul class="list-unstyled mt-2 ms-3">
+                                    {% for name, value in latest_data.assets.property.list.items() %}
+                                    <li class="d-flex justify-content-between small">
+                                        <span>{{ name|replace('_', ' ')|title }}</span>
+                                        <span>${{ "{:,.2f}".format(value) }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </li>
                         </ul>
                         {% else %}
                         <p class="text-muted text-center mb-0">No assets added yet</p>

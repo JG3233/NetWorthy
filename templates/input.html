@@ -2,247 +2,552 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-md-3">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>Years</h5>
-            </div>
-            <div id="yearList" class="list-group list-group-flush">
-                {% for year in years %}
-                <div class="list-group-item {% if year == current_year %}active{% endif %} d-flex justify-content-between align-items-center">
-                    <a href="{{ url_for('input_page', year=year) }}" 
-                       class="flex-grow-1 text-decoration-none {% if year == current_year %}text-white{% endif %}">
-                        {{ year }}
-                        {% if year == current_year|string %}
-                        <span class="ms-1">(Current)</span>
-                        {% endif %}
-                    </a>
-                    <form method="POST" 
-                          action="{{ url_for('delete_year', year=year) }}" 
-                          class="ms-2" 
-                          onsubmit="return confirm('Are you sure you want to delete data for {{ year }}?');">
-                        <button type="submit" 
-                                class="btn btn-sm btn-outline-danger {% if year == current_year %}btn-outline-light{% endif %}"
-                                title="Delete {{ year }}">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <h5>Add New Year</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" class="add-year-form">
-                    <div class="mb-3">
-                        <label for="new_year" class="form-label">Year</label>
-                        <input type="number" 
-                               class="form-control" 
-                               id="new_year" 
-                               name="new_year" 
-                               min="{{ min_year }}" 
-                               max="{{ max_year }}"
-                               value="{{ current_year }}"
-                               required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Add Year</button>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-9">
+    <div class="col-md-10 offset-md-1">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Net Worth for {{ current_year }}</h2>
+            <h2>Update Your Net Worth</h2>
+            <div>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary me-2">Back to Summary</a>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#yearModal">
+                    Add New Year
+                </button>
+            </div>
         </div>
-        
-        <form id="netWorthForm" method="POST" action="{{ url_for('input_page', year=current_year) }}">
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Assets</h5>
-                    <button type="button" class="btn btn-sm btn-success" onclick="addCategory('assets')">
-                        Add Asset Category
-                    </button>
+
+        <!-- Year Selection -->
+        <div class="card mb-4">
+            <div class="card-body d-flex align-items-center">
+                <form method="GET" class="d-flex align-items-center me-2">
+                    <label for="yearSelect" class="me-2">Select Year:</label>
+                    <select id="yearSelect" name="year" class="form-select me-2" style="width: auto;" 
+                            onchange="this.form.submit()">
+                        {% for year in years %}
+                        <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+                {% if years|length > 1 %}
+                <form method="POST" action="{{ url_for('delete_year', year=current_year) }}" 
+                      onsubmit="return confirm('Are you sure you want to delete this year? This action cannot be undone.');">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete Year</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <form method="POST">
+            <!-- Assets Section -->
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success bg-opacity-10">
+                    <h5 class="mb-0 text-success">Assets</h5>
                 </div>
                 <div class="card-body">
-                    <div id="assetCategories">
-                        {% for name, value in data.assets.items() %}
-                        <div class="mb-3 category-input">
-                            <div class="input-group">
-                                <input type="text" class="form-control category-name" 
-                                       value="{{ name }}" readonly>
-                                <input type="number" class="form-control" 
-                                       name="asset_{{ name }}" 
-                                       value="{{ value }}" 
-                                       step="0.01">
-                                <button type="button" class="btn btn-outline-danger" 
-                                        onclick="removeCategory(this)">
-                                    <i class="bi bi-trash"></i>
+                    <!-- Cash Section -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Cash & Savings</h6>
+                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                    onclick="showAddForm('cash')">
+                                <i class="bi bi-plus"></i> Add Account
+                            </button>
+                        </div>
+                        
+                        <!-- Add Form (hidden by default) -->
+                        <div id="cash_add_form" class="input-group mb-2" style="display: none;">
+                            <input type="text" class="form-control" placeholder="Account Name" 
+                                   id="new_cash_name" name="new_cash_name">
+                            <input type="number" step="0.01" class="form-control" placeholder="Value" 
+                                   id="new_cash_value" name="new_cash_value">
+                            <button type="button" class="btn btn-success" onclick="addField('cash')">Add</button>
+                            <button type="button" class="btn btn-outline-secondary" 
+                                    onclick="hideAddForm('cash')">Cancel</button>
+                        </div>
+
+                        <!-- Existing Items -->
+                        <div id="cash_fields">
+                            {% if data.assets.cash.list %}
+                                {% for name, value in data.assets.cash.list.items() %}
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text bg-light flex-grow-1">
+                                        {{ name|replace('_', ' ')|title }}
+                                    </span>
+                                    <input type="text" class="form-control" name="asset_cash_{{ name }}_name" 
+                                           value="{{ name|replace('_', ' ')|title }}" hidden>
+                                    <input type="number" step="0.01" class="form-control text-end" 
+                                           style="max-width: 200px;"
+                                           name="asset_cash_{{ name }}" value="{{ value }}">
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="this.parentElement.remove()">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small fst-italic">No cash accounts added yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Investments Section -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Investments</h6>
+                        </div>
+                        
+                        <!-- Pre-tax Investments -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="small mb-0">Pre-tax Accounts</h6>
+                                <button type="button" class="btn btn-outline-success btn-sm" 
+                                        onclick="showAddForm('investments_pre_tax')">
+                                    <i class="bi bi-plus"></i> Add Account
                                 </button>
                             </div>
+                            
+                            <!-- Add Form (hidden by default) -->
+                            <div id="investments_pre_tax_add_form" class="input-group mb-2" style="display: none;">
+                                <input type="text" class="form-control" placeholder="Account Name" 
+                                       id="new_investments_pre_tax_name" name="new_investments_pre_tax_name">
+                                <input type="number" step="0.01" class="form-control" placeholder="Value" 
+                                       id="new_investments_pre_tax_value" name="new_investments_pre_tax_value">
+                                <button type="button" class="btn btn-success" onclick="addField('investments_pre_tax')">Add</button>
+                                <button type="button" class="btn btn-outline-secondary" 
+                                        onclick="hideAddForm('investments_pre_tax')">Cancel</button>
+                            </div>
+                            
+                            <!-- Existing Items -->
+                            <div id="investments_pre_tax_fields">
+                                {% if data.assets.investments.pre_tax.list %}
+                                    {% for name, value in data.assets.investments.pre_tax.list.items() %}
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text bg-light flex-grow-1">
+                                            {{ name|replace('_', ' ')|title }}
+                                        </span>
+                                        <input type="text" class="form-control" 
+                                               name="asset_investments_pre_tax_{{ name }}_name" 
+                                               value="{{ name|replace('_', ' ')|title }}" hidden>
+                                        <input type="number" step="0.01" class="form-control text-end" 
+                                               style="max-width: 200px;"
+                                               name="asset_investments_pre_tax_{{ name }}" value="{{ value }}">
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="this.parentElement.remove()">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted small fst-italic">No pre-tax accounts added yet</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        {% endfor %}
+
+                        <!-- Tax-free Investments -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="small mb-0">Tax-free Accounts</h6>
+                                <button type="button" class="btn btn-outline-success btn-sm" 
+                                        onclick="showAddForm('investments_tax_free')">
+                                    <i class="bi bi-plus"></i> Add Account
+                                </button>
+                            </div>
+                            
+                            <!-- Add Form (hidden by default) -->
+                            <div id="investments_tax_free_add_form" class="input-group mb-2" style="display: none;">
+                                <input type="text" class="form-control" placeholder="Account Name" 
+                                       id="new_investments_tax_free_name" name="new_investments_tax_free_name">
+                                <input type="number" step="0.01" class="form-control" placeholder="Value" 
+                                       id="new_investments_tax_free_value" name="new_investments_tax_free_value">
+                                <button type="button" class="btn btn-success" onclick="addField('investments_tax_free')">Add</button>
+                                <button type="button" class="btn btn-outline-secondary" 
+                                        onclick="hideAddForm('investments_tax_free')">Cancel</button>
+                            </div>
+                            
+                            <!-- Existing Items -->
+                            <div id="investments_tax_free_fields">
+                                {% if data.assets.investments.tax_free.list %}
+                                    {% for name, value in data.assets.investments.tax_free.list.items() %}
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text bg-light flex-grow-1">
+                                            {{ name|replace('_', ' ')|title }}
+                                        </span>
+                                        <input type="text" class="form-control" 
+                                               name="asset_investments_tax_free_{{ name }}_name" 
+                                               value="{{ name|replace('_', ' ')|title }}" hidden>
+                                        <input type="number" step="0.01" class="form-control text-end" 
+                                               style="max-width: 200px;"
+                                               name="asset_investments_tax_free_{{ name }}" value="{{ value }}">
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="this.parentElement.remove()">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted small fst-italic">No tax-free accounts added yet</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- After-tax Investments -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="small mb-0">After-tax Accounts</h6>
+                                <button type="button" class="btn btn-outline-success btn-sm" 
+                                        onclick="showAddForm('investments_after_tax')">
+                                    <i class="bi bi-plus"></i> Add Account
+                                </button>
+                            </div>
+                            
+                            <!-- Add Form (hidden by default) -->
+                            <div id="investments_after_tax_add_form" class="input-group mb-2" style="display: none;">
+                                <input type="text" class="form-control" placeholder="Account Name" 
+                                       id="new_investments_after_tax_name" name="new_investments_after_tax_name">
+                                <input type="number" step="0.01" class="form-control" placeholder="Value" 
+                                       id="new_investments_after_tax_value" name="new_investments_after_tax_value">
+                                <button type="button" class="btn btn-success" onclick="addField('investments_after_tax')">Add</button>
+                                <button type="button" class="btn btn-outline-secondary" 
+                                        onclick="hideAddForm('investments_after_tax')">Cancel</button>
+                            </div>
+                            
+                            <!-- Existing Items -->
+                            <div id="investments_after_tax_fields">
+                                {% if data.assets.investments.after_tax.list %}
+                                    {% for name, value in data.assets.investments.after_tax.list.items() %}
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text bg-light flex-grow-1">
+                                            {{ name|replace('_', ' ')|title }}
+                                        </span>
+                                        <input type="text" class="form-control" 
+                                               name="asset_investments_after_tax_{{ name }}_name" 
+                                               value="{{ name|replace('_', ' ')|title }}" hidden>
+                                        <input type="number" step="0.01" class="form-control text-end" 
+                                               style="max-width: 200px;"
+                                               name="asset_investments_after_tax_{{ name }}" value="{{ value }}">
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="this.parentElement.remove()">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted small fst-italic">No after-tax accounts added yet</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Business Interests -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Business Interests</h6>
+                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                    onclick="showAddForm('business_interests')">
+                                <i class="bi bi-plus"></i> Add Business
+                            </button>
+                        </div>
+                        
+                        <!-- Add Form (hidden by default) -->
+                        <div id="business_interests_add_form" class="input-group mb-2" style="display: none;">
+                            <input type="text" class="form-control" placeholder="Business Name" 
+                                   id="new_business_interests_name" name="new_business_interests_name">
+                            <input type="number" step="0.01" class="form-control" placeholder="Value" 
+                                   id="new_business_interests_value" name="new_business_interests_value">
+                            <button type="button" class="btn btn-success" onclick="addField('business_interests')">Add</button>
+                            <button type="button" class="btn btn-outline-secondary" 
+                                    onclick="hideAddForm('business_interests')">Cancel</button>
+                        </div>
+                        
+                        <!-- Existing Items -->
+                        <div id="business_interests_fields">
+                            {% if data.assets.business_interests.list %}
+                                {% for name, value in data.assets.business_interests.list.items() %}
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text bg-light flex-grow-1">
+                                        {{ name|replace('_', ' ')|title }}
+                                    </span>
+                                    <input type="text" class="form-control" 
+                                           name="asset_business_interests_{{ name }}_name" 
+                                           value="{{ name|replace('_', ' ')|title }}" hidden>
+                                    <input type="number" step="0.01" class="form-control text-end" 
+                                           style="max-width: 200px;"
+                                           name="asset_business_interests_{{ name }}" value="{{ value }}">
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="this.parentElement.remove()">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small fst-italic">No business interests added yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Property -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Property</h6>
+                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                    onclick="showAddForm('property')">
+                                <i class="bi bi-plus"></i> Add Property
+                            </button>
+                        </div>
+                        
+                        <!-- Add Form (hidden by default) -->
+                        <div id="property_add_form" class="input-group mb-2" style="display: none;">
+                            <input type="text" class="form-control" placeholder="Property Name" 
+                                   id="new_property_name" name="new_property_name">
+                            <input type="number" step="0.01" class="form-control" placeholder="Value" 
+                                   id="new_property_value" name="new_property_value">
+                            <button type="button" class="btn btn-success" onclick="addField('property')">Add</button>
+                            <button type="button" class="btn btn-outline-secondary" 
+                                    onclick="hideAddForm('property')">Cancel</button>
+                        </div>
+                        
+                        <!-- Existing Items -->
+                        <div id="property_fields">
+                            {% if data.assets.property.list %}
+                                {% for name, value in data.assets.property.list.items() %}
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text bg-light flex-grow-1">
+                                        {{ name|replace('_', ' ')|title }}
+                                    </span>
+                                    <input type="text" class="form-control" 
+                                           name="asset_property_{{ name }}_name" 
+                                           value="{{ name|replace('_', ' ')|title }}" hidden>
+                                    <input type="number" step="0.01" class="form-control text-end" 
+                                           style="max-width: 200px;"
+                                           name="asset_property_{{ name }}" value="{{ value }}">
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="this.parentElement.remove()">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small fst-italic">No properties added yet</p>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Liabilities</h5>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="addCategory('liabilities')">
-                        Add Liability Category
-                    </button>
+            <!-- Liabilities Section -->
+            <div class="card mb-4 border-danger">
+                <div class="card-header bg-danger bg-opacity-10">
+                    <h5 class="mb-0 text-danger">Liabilities</h5>
                 </div>
                 <div class="card-body">
-                    <div id="liabilityCategories">
-                        {% for name, value in data.liabilities.items() %}
-                        <div class="mb-3 category-input">
-                            <div class="input-group">
-                                <input type="text" class="form-control category-name" 
-                                       value="{{ name }}" readonly>
-                                <input type="number" class="form-control" 
-                                       name="liability_{{ name }}" 
-                                       value="{{ value }}" 
-                                       step="0.01">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Debts & Loans</h6>
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="showAddForm('liabilities')">
+                            <i class="bi bi-plus"></i> Add Liability
+                        </button>
+                    </div>
+
+                    <!-- Add Form (hidden by default) -->
+                    <div id="liabilities_add_form" class="input-group mb-2" style="display: none;">
+                        <input type="text" class="form-control" placeholder="Liability Name" 
+                               id="new_liabilities_name" name="new_liabilities_name">
+                        <input type="number" step="0.01" class="form-control" placeholder="Value" 
+                               id="new_liabilities_value" name="new_liabilities_value">
+                        <button type="button" class="btn btn-danger" onclick="addField('liabilities')">Add</button>
+                        <button type="button" class="btn btn-outline-secondary" 
+                                onclick="hideAddForm('liabilities')">Cancel</button>
+                    </div>
+
+                    <!-- Existing Items -->
+                    <div id="liabilities_fields">
+                        {% if data.liabilities %}
+                            {% for name, value in data.liabilities.items() %}
+                            <div class="input-group mb-2">
+                                <span class="input-group-text bg-light flex-grow-1">
+                                    {{ name|replace('_', ' ')|title }}
+                                </span>
+                                <input type="text" class="form-control" name="liabilities_{{ name }}_name" 
+                                       value="{{ name|replace('_', ' ')|title }}" hidden>
+                                <input type="number" step="0.01" class="form-control text-end" 
+                                       style="max-width: 200px;"
+                                       name="liabilities_{{ name }}" value="{{ value }}">
                                 <button type="button" class="btn btn-outline-danger" 
-                                        onclick="removeCategory(this)">
+                                        onclick="this.parentElement.remove()">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
-                        </div>
-                        {% endfor %}
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted small fst-italic">No liabilities added yet</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Income Sources</h5>
-                    <button type="button" class="btn btn-sm btn-info text-white" onclick="addCategory('income')">
-                        Add Income Source
-                    </button>
+            <!-- Income Section -->
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary bg-opacity-10">
+                    <h5 class="mb-0 text-primary">Income Sources</h5>
                 </div>
                 <div class="card-body">
-                    <div id="incomeCategories">
-                        {% for name, value in data.income.items() %}
-                        <div class="mb-3 category-input">
-                            <div class="input-group">
-                                <input type="text" class="form-control category-name" 
-                                       value="{{ name }}" readonly>
-                                <input type="number" class="form-control" 
-                                       name="income_{{ name }}" 
-                                       value="{{ value }}" 
-                                       step="0.01">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Annual Income</h6>
+                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                onclick="showAddForm('income')">
+                            <i class="bi bi-plus"></i> Add Income Source
+                        </button>
+                    </div>
+
+                    <!-- Add Form (hidden by default) -->
+                    <div id="income_add_form" class="input-group mb-2" style="display: none;">
+                        <input type="text" class="form-control" placeholder="Income Source" 
+                               id="new_income_name" name="new_income_name">
+                        <input type="number" step="0.01" class="form-control" placeholder="Annual Amount" 
+                               id="new_income_value" name="new_income_value">
+                        <button type="button" class="btn btn-primary" onclick="addField('income')">Add</button>
+                        <button type="button" class="btn btn-outline-secondary" 
+                                onclick="hideAddForm('income')">Cancel</button>
+                    </div>
+
+                    <!-- Existing Items -->
+                    <div id="income_fields">
+                        {% if data.income %}
+                            {% for name, value in data.income.items() %}
+                            <div class="input-group mb-2">
+                                <span class="input-group-text bg-light flex-grow-1">
+                                    {{ name|replace('_', ' ')|title }}
+                                </span>
+                                <input type="text" class="form-control" name="income_{{ name }}_name" 
+                                       value="{{ name|replace('_', ' ')|title }}" hidden>
+                                <input type="number" step="0.01" class="form-control text-end" 
+                                       style="max-width: 200px;"
+                                       name="income_{{ name }}" value="{{ value }}">
                                 <button type="button" class="btn btn-outline-danger" 
-                                        onclick="removeCategory(this)">
+                                        onclick="this.parentElement.remove()">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
-                        </div>
-                        {% endfor %}
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted small fst-italic">No income sources added yet</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
 
-            <div class="d-flex justify-content-between">
-                <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Summary</a>
-                <button type="submit" class="btn btn-primary">Update Net Worth</button>
+            <div class="text-center">
+                <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Add Category Modal -->
-<div class="modal fade" id="addCategoryModal" tabindex="-1">
+<!-- Add New Year Modal -->
+<div class="modal fade" id="yearModal" tabindex="-1" aria-labelledby="yearModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Add New Category</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="yearModalLabel">Add New Year</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="categoryName" class="form-label">Category Name</label>
-                    <input type="text" class="form-control" id="categoryName" required>
+            <form method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new_year" class="form-label">Year</label>
+                        <input type="number" class="form-control" id="new_year" name="new_year" 
+                               min="{{ min_year }}" max="{{ max_year }}" 
+                               value="{{ max_year }}" required>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmAddCategory()">Add</button>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Add Year</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <script>
-let currentCategoryType = '';
-let modal;
-
-// Initialize the modal after DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    modal = new bootstrap.Modal(document.getElementById('addCategoryModal'));
-});
-
-function addCategory(type) {
-    currentCategoryType = type;
-    document.getElementById('categoryName').value = '';
-    modal.show();
+function showAddForm(category) {
+    document.getElementById(`${category}_add_form`).style.display = 'flex';
 }
 
-function confirmAddCategory() {
-    const categoryName = document.getElementById('categoryName').value.trim();
-    if (!categoryName) return;
-
-    const container = document.getElementById(
-        currentCategoryType === 'assets' ? 'assetCategories' : 
-        currentCategoryType === 'liabilities' ? 'liabilityCategories' : 
-        'incomeCategories'
-    );
-
-    const newCategory = document.createElement('div');
-    newCategory.className = 'mb-3 category-input';
-    newCategory.innerHTML = `
-        <div class="input-group">
-            <input type="text" class="form-control category-name" 
-                   value="${categoryName}" readonly>
-            <input type="number" class="form-control" 
-                   name="${currentCategoryType}_${categoryName}" 
-                   value="0" 
-                   step="0.01">
-            <button type="button" class="btn btn-outline-danger" 
-                    onclick="removeCategory(this)">
-                <i class="bi bi-trash"></i>
-            </button>
-        </div>
-    `;
-
-    container.appendChild(newCategory);
-    modal.hide();
+function hideAddForm(category) {
+    const form = document.getElementById(`${category}_add_form`);
+    form.style.display = 'none';
+    // Clear the inputs
+    form.querySelector(`#new_${category}_name`).value = '';
+    form.querySelector(`#new_${category}_value`).value = '';
 }
 
-function removeCategory(button) {
-    button.closest('.category-input').remove();
-}
-
-// Set default value of 0 for empty inputs on form submission
-document.getElementById('netWorthForm').addEventListener('submit', function(e) {
-    const inputs = this.querySelectorAll('input[type="number"]');
-    inputs.forEach(input => {
-        if (input.value === '') {
-            input.value = '0';
-        }
-    });
-});
-
-// Add enter key support for the modal
-document.getElementById('categoryName').addEventListener('keyup', function(e) {
-    if (e.key === 'Enter') {
-        confirmAddCategory();
+function addField(category) {
+    const container = document.getElementById(`${category}_fields`);
+    const nameInput = document.getElementById(`new_${category}_name`);
+    const valueInput = document.getElementById(`new_${category}_value`);
+    
+    if (!nameInput.value || !valueInput.value) {
+        alert('Please fill in both name and value fields');
+        return;
     }
+    
+    // Remove the "no items" message if it exists
+    const noItemsMsg = container.querySelector('p.text-muted');
+    if (noItemsMsg) {
+        noItemsMsg.remove();
+    }
+    
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    
+    const name = nameInput.value.toLowerCase().replace(/ /g, '_');
+    let fieldName;
+    if (category.startsWith('investments_')) {
+        const type = category.replace('investments_', '');
+        const mappedType = type === 'after' ? 'after_tax' : type;
+        fieldName = `asset_investments_${mappedType}_${name}`;
+    } else if (category === 'business_interests' || category === 'property' || category === 'cash') {
+        fieldName = `asset_${category}_${name}`;
+        console.log(`Generated field name for ${category}: ${fieldName}`);  // Debug log
+    } else {
+        fieldName = `${category}_${name}`;
+    }
+    
+    div.innerHTML = `
+        <span class="input-group-text bg-light flex-grow-1">
+            ${nameInput.value}
+        </span>
+        <input type="text" class="form-control" name="${fieldName}_name" 
+               value="${nameInput.value}" hidden>
+        <input type="number" step="0.01" class="form-control text-end" 
+               style="max-width: 200px;"
+               name="${fieldName}" value="${valueInput.value}">
+        <button type="button" class="btn btn-outline-danger" 
+                onclick="this.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+    
+    container.appendChild(div);
+    hideAddForm(category);
+}
+
+// Add event listeners for Enter key
+document.addEventListener('DOMContentLoaded', function() {
+    // Get all add forms
+    const addForms = document.querySelectorAll('[id$="_add_form"]');
+    
+    addForms.forEach(form => {
+        const category = form.id.replace('_add_form', '');
+        const inputs = form.querySelectorAll('input');
+        
+        inputs.forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent form submission
+                    addField(category);
+                }
+            });
+        });
+    });
 });
 </script>
 {% endblock %} 
