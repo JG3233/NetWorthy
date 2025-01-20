@@ -14,6 +14,7 @@ def load_data():
         current_year = str(datetime.now().year)
         default_data = {
             current_year: {
+                'birth_year': 1990,  # Add default birth year
                 'total_assets': 0,
                 'total_liabilities': 0,
                 'total_income': 0,
@@ -383,6 +384,102 @@ def delete_year(year):
     
     # If year doesn't exist, just redirect to input page
     return redirect(url_for('input_page'))
+
+@app.route('/analysis', methods=['GET', 'POST'])
+def analysis():
+    net_worth_history = load_data()
+    latest_year = max(net_worth_history.keys())
+    latest_data = net_worth_history[latest_year]
+    
+    # Handle birth year form submission
+    if request.method == 'POST':
+        birth_year = request.form.get('birth_year')
+        if birth_year and birth_year.isdigit():
+            birth_year = int(birth_year)
+            current_year = datetime.now().year
+            # Validate birth year is reasonable
+            if 1900 <= birth_year <= current_year:
+                # Update birth_year in all years
+                for year in net_worth_history:
+                    net_worth_history[year]['birth_year'] = birth_year
+                save_data(net_worth_history)
+    
+    # Get birth_year from data or use default
+    birth_year = latest_data.get('birth_year', 1990)
+    current_year = datetime.now().year
+    age = current_year - birth_year
+    
+    # Calculate 3-year average income
+    years = sorted(list(net_worth_history.keys()), reverse=True)
+    income_values = []
+    for year in years[:3]:  # Look at last 3 years
+        year_income = net_worth_history[year].get('total_income', 0)
+        if year_income > 0:  # Only include years with income
+            income_values.append(year_income)
+    
+    # Calculate average income, use current year if no valid past data
+    if income_values:
+        total_income = sum(income_values) / len(income_values)
+    else:
+        total_income = latest_data.get('total_income', 0)
+    
+    # Add safety check for zero income
+    if total_income <= 0:
+        total_income = 1  # Prevent division by zero by using minimum value
+    
+    # Calculate years until 40
+    years_until_40 = max(0, 40 - age)
+    
+    # Calculate MND metrics with safety checks
+    total_assets = latest_data.get('total_assets', 0)
+    total_liabilities = latest_data.get('total_liabilities', 0)
+    net_worth = total_assets - total_liabilities
+    
+    # New formula: (Age × Income) ÷ (10 + years until 40)
+    expected_net_worth = (age * total_income) / (10 + years_until_40)
+    
+    # Double the result for the target
+    target_net_worth = expected_net_worth * 2
+    
+    # Ensure expected_net_worth is at least 1 to prevent division issues
+    expected_net_worth = max(expected_net_worth, 1)
+    target_net_worth = max(target_net_worth, 1)
+    
+    # Prodigious Accumulator of Wealth (PAW): Net worth >= target
+    paw_threshold = target_net_worth
+    
+    # Average Accumulator of Wealth (AAW): Net worth between expected and target
+    aaw_min = expected_net_worth
+    aaw_max = target_net_worth
+    
+    # Under Accumulator of Wealth (UAW): Net worth < expected
+    uaw_threshold = expected_net_worth
+    
+    current_net_worth = net_worth
+    
+    # Determine category
+    if current_net_worth >= paw_threshold:
+        category = 'PAW'
+    elif current_net_worth >= aaw_min:
+        category = 'AAW'
+    else:
+        category = 'UAW'
+    
+    return render_template('analysis.html',
+                         age=age,
+                         birth_year=birth_year,
+                         total_income=total_income,
+                         income_values=income_values,  # Pass income history to template
+                         current_net_worth=current_net_worth,
+                         expected_net_worth=expected_net_worth,
+                         paw_threshold=paw_threshold,
+                         aaw_min=aaw_min,
+                         aaw_max=aaw_max,
+                         uaw_threshold=uaw_threshold,
+                         category=category,
+                         years_until_40=years_until_40,
+                         min_birth_year=1900,
+                         max_birth_year=current_year)
 
 if __name__ == '__main__':
     app.run(debug=True) 

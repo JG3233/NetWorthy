@@ -5,7 +5,7 @@
     <div class="col-md-10 offset-md-1">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>Your Net Worth Summary</h2>
-            <a href="{{ url_for('input_page') }}" class="btn btn-primary">Update Values</a>
+            <a href="{{ url_for('input_page') }}" class="btn btn-primary">Update Data</a>
         </div>
 
         {% set latest_year = data.keys()|list|sort(reverse=True)|first %}
@@ -45,8 +45,9 @@
         </div>
 
         <div class="row">
-            <div class="col-md-6">
-                <div class="card">
+            <!-- Assets Column -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
                     <div class="card-header">
                         <h5>Assets Breakdown</h5>
                     </div>
@@ -176,7 +177,45 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+
+            <!-- Tax Buckets Column -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Investment Tax Buckets</h5>
+                    </div>
+                    <div class="card-body">
+                        {% set latest_year = data.keys()|list|sort(reverse=true)|first %}
+                        {% set investments = data[latest_year]['assets']['investments'] %}
+                        
+                        <div class="position-relative" style="height: 250px;">
+                            <canvas id="taxBucketChart"></canvas>
+                        </div>
+                        
+                        <!-- Tax Bucket Details -->
+                        <div class="row mt-3">
+                            <div class="col-md-4 text-center">
+                                <h6 class="text-muted">Pre-Tax</h6>
+                                <p class="h5">${{ "{:,.0f}".format(investments['pre_tax']['total']) }}</p>
+                                <small class="text-muted">Traditional 401k, IRA</small>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <h6 class="text-muted">Tax-Free</h6>
+                                <p class="h5">${{ "{:,.0f}".format(investments['tax_free']['total']) }}</p>
+                                <small class="text-muted">Roth 401k, IRA</small>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <h6 class="text-muted">After-Tax</h6>
+                                <p class="h5">${{ "{:,.0f}".format(investments['after_tax']['total']) }}</p>
+                                <small class="text-muted">Brokerage</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Liabilities Column (Full Width) -->
+            <div class="col-md-12 mb-4">
                 <div class="card">
                     <div class="card-header">
                         <h5>Liabilities Breakdown</h5>
@@ -197,30 +236,31 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-12 mt-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Income Sources</h5>
-                </div>
-                <div class="card-body">
-                    {% if latest_data.income %}
-                    <ul class="list-group">
-                        {% for name, value in latest_data.income.items() %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ name|replace('_', ' ')|title }}
-                            <span>${{ "{:,.2f}".format(value) }}</span>
-                        </li>
-                        {% endfor %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
-                            Total Annual Income
-                            <span>${{ "{:,.2f}".format(latest_data.total_income) }}</span>
-                        </li>
-                    </ul>
-                    {% else %}
-                    <p class="text-muted text-center mb-0">No income sources added yet</p>
-                    {% endif %}
+            <!-- Income Column (Full Width) - Now part of the same row -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Income Sources</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if latest_data.income %}
+                        <ul class="list-group">
+                            {% for name, value in latest_data.income.items() %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ name|replace('_', ' ')|title }}
+                                <span>${{ "{:,.2f}".format(value) }}</span>
+                            </li>
+                            {% endfor %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
+                                Total Annual Income
+                                <span>${{ "{:,.2f}".format(latest_data.total_income) }}</span>
+                            </li>
+                        </ul>
+                        {% else %}
+                        <p class="text-muted text-center mb-0">No income sources added yet</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -352,6 +392,58 @@ document.addEventListener('DOMContentLoaded', function() {
                                 currency: 'USD',
                                 maximumSignificantDigits: 3
                             }).format(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Tax Bucket Chart
+    const taxCtx = document.getElementById('taxBucketChart').getContext('2d');
+    
+    {% set latest_year = data.keys()|list|sort(reverse=true)|first %}
+    {% set investments = data[latest_year]['assets']['investments'] %}
+    
+    const taxBucketData = {
+        preTax: {{ investments['pre_tax']['total'] }},
+        taxFree: {{ investments['tax_free']['total'] }},
+        afterTax: {{ investments['after_tax']['total'] }}
+    };
+    
+    new Chart(taxCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pre-Tax', 'Tax-Free', 'After-Tax'],
+            datasets: [{
+                data: [taxBucketData.preTax, taxBucketData.taxFree, taxBucketData.afterTax],
+                backgroundColor: [
+                    'rgba(13, 110, 253, 0.7)',  // Bootstrap primary
+                    'rgba(25, 135, 84, 0.7)',   // Bootstrap success
+                    'rgba(255, 193, 7, 0.7)'    // Bootstrap warning
+                ],
+                borderColor: [
+                    'rgb(13, 110, 253)',
+                    'rgb(25, 135, 84)',
+                    'rgb(255, 193, 7)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                            return `$${new Intl.NumberFormat().format(value)} (${percentage}%)`;
                         }
                     }
                 }

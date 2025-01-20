@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>MND Analysis (Money Guy Adjusted)</h2>
+            <div>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary me-2">Back to Summary</a>
+                <a href="{{ url_for('input_page') }}" class="btn btn-primary">Update Values</a>
+            </div>
+        </div>
+
+        <!-- Add this after the header and before the warning -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Your Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" class="row align-items-end">
+                    <div class="col-md-4">
+                        <label for="birth_year" class="form-label">Birth Year</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="birth_year" 
+                                   name="birth_year" 
+                                   value="{{ birth_year }}"
+                                   min="{{ min_birth_year }}"
+                                   max="{{ max_birth_year }}"
+                                   required>
+                            <button class="btn btn-primary" type="submit">Update</button>
+                        </div>
+                        <div class="form-text">Current age: {{ age }} years</div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if total_income <= 0 %}
+        <div class="alert alert-warning mb-4">
+            <strong>Note:</strong> Your income appears to be $0. Please update your income data for a more accurate analysis.
+        </div>
+        {% endif %}
+
+        <!-- Main Analysis Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Your Wealth Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-4 text-center">
+                        <h6>Your Net Worth</h6>
+                        <p class="h3 {% if category == 'PAW' %}text-success{% elif category == 'AAW' %}text-primary{% else %}text-warning{% endif %}">
+                            ${{ "{:,.2f}".format(current_net_worth) }}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h6>Target Net Worth</h6>
+                        <p class="h3">${{ "{:,.2f}".format(expected_net_worth) }}</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h6>Your Category</h6>
+                        <p class="h3 {% if category == 'PAW' %}text-success{% elif category == 'AAW' %}text-primary{% else %}text-danger{% endif %}">
+                            {{ category }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <h6 class="mb-2">Progress to Target</h6>
+                    <div class="position-relative" style="height: 100px;">
+                        <canvas id="wealthProgressChart"></canvas>
+                    </div>
+                    
+                    <!-- Legend -->
+                    <div class="d-flex justify-content-center gap-3 mt-3">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-danger rounded me-2" style="width: 15px; height: 15px;"></div>
+                            <small>Under Target</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary rounded me-2" style="width: 15px; height: 15px;"></div>
+                            <small>Meeting Target</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-success rounded me-2" style="width: 15px; height: 15px;"></div>
+                            <small>Exceeding Target</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Explanations -->
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card h-100 {% if category == 'PAW' %}border-success{% endif %}">
+                            <div class="card-header {% if category == 'PAW' %}bg-success text-white{% endif %}">
+                                <h6 class="mb-0">Prodigious Accumulator of Wealth (PAW)</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2">Net Worth ≥ ${{ "{:,.2f}".format(paw_threshold) }}</p>
+                                <small class="text-muted">You're accumulating wealth at twice the expected rate or better!</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 {% if category == 'AAW' %}border-primary{% endif %}">
+                            <div class="card-header {% if category == 'AAW' %}bg-primary text-white{% endif %}">
+                                <h6 class="mb-0">Average Accumulator of Wealth (AAW)</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2">${{ "{:,.2f}".format(aaw_min) }} - ${{ "{:,.2f}".format(aaw_max) }}</p>
+                                <small class="text-muted">You're accumulating wealth at the expected rate.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 {% if category == 'UAW' %}border-danger{% endif %}">
+                            <div class="card-header {% if category == 'UAW' %}bg-danger text-white{% endif %}">
+                                <h6 class="mb-0">Under Accumulator of Wealth (UAW)</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2">Net Worth < ${{ "{:,.2f}".format(uaw_threshold) }}</p>
+                                <small class="text-muted">You're accumulating wealth slower than expected.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formula Explanation -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Understanding the Formula</h5>
+            </div>
+            <div class="card-body">
+                <p>The wealth accumulation formula is based on the findings from the book "Millionaire Next Door" and is adjusted to be more realistic for young professionals using the Money Guy Formula:</p>
+                
+                <div class="alert alert-info">
+                    <strong>Target Net Worth Formula:</strong><br>
+                    1. Multiply your age by your annual income<br>
+                    2. Divide by (10 + years until you turn 40)<br>
+                    3. Double the result
+                </div>
+                
+                <p>Your numbers:</p>
+                <ul>
+                    <li>Age: {{ age }}</li>
+                    <li>Income:
+                        {% if income_values|length > 1 %}
+                            ${{ "{:,.2f}".format(total_income) }} (3-year average of
+                            {% for income in income_values %}
+                                {% if not loop.last %}
+                                    ${{ "{:,.2f}".format(income) }}{% if not loop.last %}, {% endif %}
+                                {% else %}
+                                    and ${{ "{:,.2f}".format(income) }}
+                                {% endif %}
+                            {% endfor %})
+                        {% else %}
+                            ${{ "{:,.2f}".format(total_income) }} (current year)
+                        {% endif %}
+                    </li>
+                    <li>Years until 40: {{ years_until_40 }}</li>
+                    <li>Calculation:</li>
+                    <ul>
+                        <li>({{ age }} × ${{ "{:,.2f}".format(total_income) }}) = ${{ "{:,.2f}".format(age * total_income) }}</li>
+                        <li>${{ "{:,.2f}".format(age * total_income) }} ÷ (10 + {{ years_until_40 }}) = ${{ "{:,.2f}".format(expected_net_worth) }}</li>
+                        <li>Double the result = ${{ "{:,.2f}".format(paw_threshold) }}</li>
+                    </ul>
+                </ul>
+                
+                <div class="alert alert-secondary">
+                    <h6 class="mb-2">Why this formula?</h6>
+                    <p class="mb-0">This formula is designed to:
+                        <ul class="mb-0">
+                            <li>Be more realistic for young professionals</li>
+                            <li>Account for the time needed to build wealth</li>
+                            <li>Adjust expectations based on your distance from peak earning years</li>
+                            <li>Use a 3-year income average to smooth out rapid income changes</li>
+                            <li>Provide achievable targets while maintaining good saving habits</li>
+                        </ul>
+                    </p>
+                </div>
+                
+                <p class="mb-0"><small class="text-muted">Note: This is a guideline rather than a strict rule. Your personal circumstances, location, and career path will affect your wealth-building journey.</small></p>
+            </div>
+        </div>
+
+        <!-- Add this after the Formula Explanation card and before the closing div -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Learn More</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Books</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <a href="https://www.amazon.com/Millionaire-Next-Door-Surprising-Americas/dp/1589795474" 
+                                   target="_blank" 
+                                   class="text-decoration-none">
+                                    <i class="bi bi-book me-2"></i>
+                                    The Millionaire Next Door
+                                </a>
+                                <small class="text-muted d-block ms-4">Original research on wealth accumulation patterns</small>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Online Resources</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <a href="https://www.youtube.com/watch?v=egoS5rVBy4k&t=11s" 
+                                   target="_blank"
+                                   class="text-decoration-none">
+                                    <i class="bi bi-play-circle me-2"></i>
+                                    Money Guy Show - Wealth Formula
+                                </a>
+                                <small class="text-muted d-block ms-4">Source of our adjusted formula for younger earners</small>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    These resources are provided for educational purposes. Always do your own research and consider consulting with financial professionals for personalized advice.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add this script at the bottom of the template, just before the endblock -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('wealthProgressChart').getContext('2d');
+    
+    // Data from Flask
+    const currentNetWorth = {{ current_net_worth }};
+    const expectedNetWorth = {{ expected_net_worth }};
+    const pawThreshold = {{ paw_threshold }};
+    
+    // Calculate a reasonable maximum for the chart (3x target or current net worth, whichever is larger)
+    const maxValue = Math.max(pawThreshold * 1.5, currentNetWorth * 1.2);
+    
+    // Create the stacked bar chart
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Net Worth Zones'],
+            datasets: [
+                {
+                    label: 'UAW Zone',
+                    data: [expectedNetWorth],
+                    backgroundColor: 'rgba(220, 53, 69, 0.5)',  // Bootstrap danger color
+                    borderColor: 'rgb(220, 53, 69)',
+                    borderWidth: 1,
+                    stack: 'Stack 0',
+                },
+                {
+                    label: 'AAW Zone',
+                    data: [pawThreshold - expectedNetWorth],
+                    backgroundColor: 'rgba(13, 110, 253, 0.5)',  // Bootstrap primary color
+                    borderColor: 'rgb(13, 110, 253)',
+                    borderWidth: 1,
+                    stack: 'Stack 0',
+                },
+                {
+                    label: 'PAW Zone',
+                    data: [maxValue - pawThreshold],
+                    backgroundColor: 'rgba(25, 135, 84, 0.5)',  // Bootstrap success color
+                    borderColor: 'rgb(25, 135, 84)',
+                    borderWidth: 1,
+                    stack: 'Stack 0',
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    stacked: true,
+                    beginAtZero: true,
+                    max: maxValue,  // Set maximum value
+                    grid: {
+                        display: true
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + new Intl.NumberFormat().format(value);
+                        }
+                    }
+                },
+                y: {
+                    stacked: true,
+                    display: false
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '$' + new Intl.NumberFormat().format(context.raw);
+                            return label;
+                        }
+                    }
+                },
+                annotation: {
+                    annotations: {
+                        currentPosition: {
+                            type: 'line',
+                            xMin: currentNetWorth,
+                            xMax: currentNetWorth,
+                            borderColor: 'black',
+                            borderWidth: 2,
+                            label: {
+                                display: true,
+                                content: `Current: $${new Intl.NumberFormat().format(currentNetWorth)}`,
+                                position: 'top'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 
