@@ -1,5 +1,10 @@
 net_worth_history.json
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Python cache
 __pycache__/
 *.py[cod]
@@ -18,3 +23,17 @@ ENV/
 
 # OS
 .DS_Store
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# SSL certificates (if using HTTPS)
+ssl/
+*.pem
+*.key
+*.crt
+
+# Docker
+docker-compose.override.yml
