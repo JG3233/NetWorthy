@@ -1,0 +1,131 @@
+name: Deploy to Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup SSH key
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to server
+      env:
+        SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        SERVER_USER: ${{ secrets.SERVER_USER }}
+        DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/networthy' }}
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      run: |
+        ssh -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          set -e
+          echo "📦 Deploying NetWorthy..."
+
+          # Navigate to deploy directory
+          cd ${{ secrets.DEPLOY_PATH || '/opt/networthy' }}
+
+          # Backup database before update
+          echo "💾 Creating database backup..."
+          docker-compose exec -T db pg_dump -U networthy networthy > backup_$(date +%Y%m%d_%H%M%S).sql || true
+
+          # Pull latest changes
+          echo "⬇️ Pulling latest code..."
+          git fetch --all
+          git checkout ${{ github.ref_name }}
+          git pull origin ${{ github.ref_name }}
+
+          # Update environment file if needed
+          if [ ! -f .env ]; then
+            echo "⚙️ Creating .env file..."
+            cp .env.example .env
+            # Update password in .env
+            sed -i "s/change_this_password_in_production/$POSTGRES_PASSWORD/g" .env
+          fi
+
+          # Pull latest images
+          echo "🐳 Pulling Docker images..."
+          docker-compose pull
+
+          # Restart services
+          echo "🔄 Restarting services..."
+          docker-compose down
+          docker-compose up -d --build
+
+          # Wait for services to be healthy
+          echo "⏳ Waiting for services to be healthy..."
+          sleep 10
+
+          # Check service status
+          echo "✅ Checking service status..."
+          docker-compose ps
+
+          # Cleanup old images
+          echo "🧹 Cleaning up old Docker images..."
+          docker image prune -f
+
+          echo "🎉 Deployment complete!"
+        ENDSSH
+
+    - name: Verify deployment
+      env:
+        SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        SERVER_USER: ${{ secrets.SERVER_USER }}
+      run: |
+        ssh -i ~/.ssh/deploy_key $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          cd ${{ secrets.DEPLOY_PATH || '/opt/networthy' }}
+
+          # Check if all containers are running
+          if docker-compose ps | grep -q "Up"; then
+            echo "✅ All containers are running"
+          else
+            echo "❌ Some containers are not running"
+            exit 1
+          fi
+
+          # Test the application endpoint
+          if curl -f http://localhost/health > /dev/null 2>&1; then
+            echo "✅ Application health check passed"
+          else
+            echo "⚠️ Application health check failed"
+            exit 1
+          fi
+        ENDSSH
+
+    - name: Cleanup SSH key
+      if: always()
+      run: |
+        rm -f ~/.ssh/deploy_key
+
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "🎉 Deployment to ${{ github.event.inputs.environment || 'production' }} successful!"
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Deployment to ${{ github.event.inputs.environment || 'production' }} failed!"

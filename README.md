@@ -1,5 +1,9 @@
 # NetWorthy
 
+[![Tests](https://github.com/JG3233/NetWorthy/actions/workflows/test.yml/badge.svg)](https://github.com/JG3233/NetWorthy/actions/workflows/test.yml)
+[![Docker Build](https://github.com/JG3233/NetWorthy/actions/workflows/docker-build.yml/badge.svg)](https://github.com/JG3233/NetWorthy/actions/workflows/docker-build.yml)
+[![License](https://img.shields.io/github/license/JG3233/NetWorthy)](LICENSE)
+
 A production-ready Net Worth tracking application inspired by the Money Guy show, built with Flask, PostgreSQL, and nginx.
 
 ## Description
@@ -89,6 +93,63 @@ docker-compose exec app python migrate_json_to_postgres.py
 ```
 
 Your data will be imported into PostgreSQL. The JSON file is kept as a backup.
+
+## CI/CD Pipeline
+
+NetWorthy includes a complete GitHub Actions CI/CD pipeline for automated testing, building, and deployment.
+
+### Automated Testing
+
+Every push and pull request automatically:
+- ✅ Runs unit tests with PostgreSQL
+- ✅ Checks code style with flake8
+- ✅ Tests Docker image builds
+- ✅ Validates docker-compose configuration
+
+### Docker Image Publishing
+
+Pushes to `main` branch automatically:
+- 🐳 Build multi-architecture Docker images (amd64, arm64)
+- 📦 Push to GitHub Container Registry
+- 🏷️ Tag with version numbers and `latest`
+
+**Using pre-built images:**
+```bash
+# Pull the latest image
+docker pull ghcr.io/jg3233/networthy:latest
+
+# Or update docker-compose.yml:
+services:
+  app:
+    image: ghcr.io/jg3233/networthy:latest
+    # Remove 'build: .' line
+```
+
+### Automated Deployment
+
+Deploy to your VM with one click or automatically on release:
+
+**Setup (one-time):**
+1. Generate SSH key: `ssh-keygen -t ed25519 -f ~/.ssh/github_deploy_key`
+2. Copy to server: `ssh-copy-id -i ~/.ssh/github_deploy_key.pub user@server`
+3. Add secrets to GitHub (Settings → Secrets → Actions):
+   - `SSH_PRIVATE_KEY` - Your private key
+   - `SERVER_HOST` - Server IP/hostname
+   - `SERVER_USER` - SSH username
+   - `DEPLOY_PATH` - App path (e.g., `/opt/networthy`)
+   - `POSTGRES_PASSWORD` - Database password
+
+**Deploy:**
+- Go to Actions → Deploy to Server → Run workflow
+- Or create a release tag: `git tag v1.0.0 && git push origin v1.0.0`
+
+The deployment workflow automatically:
+- 💾 Backs up database
+- ⬇️ Pulls latest code
+- 🐳 Updates containers
+- ✅ Verifies health
+
+See [.github/workflows/README.md](.github/workflows/README.md) for detailed CI/CD documentation.
 
 ## Configuration
 
